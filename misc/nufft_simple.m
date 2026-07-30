@@ -15,4 +15,5 @@ function y = nufft_simple(x, scaling_factor, interpolation_matrix, Kd)
 
 y = x .* scaling_factor;
 y = col(fftn_fast(y, Kd));
+y = double(y); %modified
 y = interpolation_matrix * y;
