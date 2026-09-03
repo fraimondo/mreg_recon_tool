@@ -1,0 +1,3 @@
+[submodule "external/mirt"]
+	path = external/mirt
+	url = https://github.com/JeffFessler/mirt.git
