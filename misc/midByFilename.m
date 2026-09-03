@@ -4,9 +4,10 @@ function mid = midByFilename(filename)
 idx = strfind(f,'_MID');
 f = f(idx+4:end);
 all_idx = strfind(f,'_');
-if len(all_idx) == 1
+if isscalar(all_idx)
     idx = all_idx;
-else:
+else
     idx = all_idx(1);
+end
 mid = f(1:idx-1);
 mid = str2num(mid);

@@ -38,23 +38,6 @@ for ii=1:numel(list)
     if exist(tmp, 'dir'), addpath(tmp), end
 end
 
-
-% Set up path to mex files, possibly depending on matlab version.
-% Fortunately it seems that the v6 files also run on v7.
-% Unfortunately, it seems that sometimes compiling on one version
-% e.g., 7.3 and running on earlier 7.0 won't work.
-% If you have mex problems, comment out the following line.
-% Much of the toolbox will work without mex, just slower.
-addpath([mreg_recon_dir 'mex/v7']);
-
-
-% do not add the paths below if you are using Matlab!
-if ir_is_octave
-    addpath([mreg_recon_dir 'octave']); % extra stuff for octave only!
-elseif isempty(which('dbstack')) % for freemat only!
-    addpath([mreg_recon_dir 'freemat']); % extra stuff for freemat only!
-end
-
 run([mreg_recon_dir  'external' filesep 'mirt' filesep 'setup.m']); % add mirt to path
 
 % check to see if path setup worked by looking for im() routine.
