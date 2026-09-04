@@ -61,10 +61,14 @@ function recon = mreg_recon_tool_recon(how,varargin)
         rawdata_filename = varargin{2};
         fprintf("Overriding reconstruction input filename: %s\n", rawdata_filename);
         tframes = zeros(nargin-2,1);
-        fprintf('Reconstruction job (%d tframes) started on %s\n.', nargin-2, datestr(now));
+        fprintf('Reconstruction job (%d tframes) started on %s\n', nargin-3, datestr(now));
         fprintf('Frames: ');
-        for i=3:nargin-1;
-            tframes(i-2) = varargin{i};
+        for i=3:nargin-1
+            if ~isnumeric(varargin{i})
+                tframes(i-2) = str2num(varargin{i});
+            else
+                tframes(i-2) = varargin{i};
+            end
             fprintf('%d ', tframes(i-2));
         end
         fprintf('\n');
