@@ -38,6 +38,7 @@ D.gui_data.save_folder_name = '';
 D.gui_data.rawdata_filename = '';
 D.gui_data.reference_filename = '';
 D.gui_data.trajectory_filename = '';
+D.gui_data.parallel_type_string = {'None','Slurm', 'HTCondor', 'GNU Parallel'};
 
 D.check.rawdata_loaded_flag = 0;
 D.check.reference_loaded_flag = 0;
@@ -63,7 +64,7 @@ D.recon.recon_details.DeltaT = 0;
 
 D.param.recon_dimension = 3; % by default it is assumed that the reconstructed image will be 3D
 D.param.sensmode = 'adapt';
-    
+
 
 % misc
 active_flag_color = [0.5 1 0.5];
@@ -78,7 +79,7 @@ cb_width   = pb_width; % width of a checkbox
 cb_height  = 15; % push button height
 spacing    = 5; % typical spacing inbetween gui elements
 panel_height = 225; % height of the upper panels
-panel_height2 = 430; % height of the recon panel
+panel_height2 = 460; % height of the recon panel
 border_spacing = 3*spacing;
 font_size = 10;
 font_units = 'pixels';
@@ -178,8 +179,11 @@ H.global_or_shift_e = uicontrol(H.main_fig,'Style','Edit','Parent',H.recon_panel
 p = get(H.global_or_shift_e,'Position');
 %H.use_gridengine_cb = uicontrol(H.main_fig,'Style','CheckBox','Parent',H.recon_panel,'String','Use GridEngine','Value',0,'Position',[spacing,p(2)-cb_height-spacing,cb_width,cb_height],'Callback',{@use_gridengine_cb_cb});
 %p = get(H.use_gridengine_cb,'Position');
-H.use_slurm_cb = uicontrol(H.main_fig,'Style','CheckBox','Parent',H.recon_panel,'String','Use Slurm','Value',0,'Position',[spacing,p(2)-cb_height-spacing,cb_width,cb_height],'Callback',{@use_slurm_cb_cb});
-p = get(H.use_slurm_cb,'Position');
+% H.use_slurm_cb = uicontrol(H.main_fig,'Style','CheckBox','Parent',H.recon_panel,'String','Use Slurm','Value',0,'Position',[spacing,p(2)-cb_height-spacing,cb_width,cb_height],'Callback',{@use_slurm_cb_cb});
+% p = get(H.use_slurm_cb,'Position');
+H.temporal_recon_type_t = uicontrol(H.main_fig,'Style','Text','Parent',H.recon_panel,'String','Parallel Proc.','Position',[spacing,p(2)-tb_height-spacing,pb_width,tb_height],'HorizontalAlignment','left');
+H.use_parallel_cb = uicontrol(H.main_fig,'Style','PopupMenu','Parent',H.recon_panel,'String', D.gui_data.parallel_type_string,'Position',[spacing,p(2)-pb_height-tb_height-spacing,pb_width,pb_height],'Callback',{@use_parallel_cb_cb});
+p = get(H.use_parallel_cb,'Position');
 H.frames_per_job_t = uicontrol(H.main_fig,'Style','Text','Parent',H.recon_panel,'String','Frames per Job','Position',[spacing,p(2)-tb_height-spacing,pb_width,tb_height],'HorizontalAlignment','left');
 H.frames_per_job_e = uicontrol(H.main_fig,'Style','Edit','Parent',H.recon_panel,'String','20','Position',[spacing,p(2)-pb_height-tb_height-spacing,pb_width,pb_height],'BackgroundColor','white','Callback',{@frames_per_job_e_cb},'Callback',{@frames_per_job_e_cb});
 p = get(H.frames_per_job_e,'Position');
@@ -226,9 +230,11 @@ set(H.sensmode_pm,'Value',2);
 
 D.param.frames_per_job = str2num(get(H.frames_per_job_e,'String'));
 %D.param.use_gridengine = get(H.use_gridengine_cb,'Value');
-D.param.use_slurm = get(H.use_slurm_cb,'Value');
+% D.param.use_slurm = get(H.use_slurm_cb,'Value');
+D.param.use_parallel = get(H.use_parallel_cb,'Value');
 
-use_slurm_cb_cb;
+% use_slurm_cb_cb;
+use_parallel_cb_cb;
 select_view_reference_pm_cb;
 sensmode_pm_cb([],[],D.param.sensmode);
 temporal_recon_type_pm_cb;
@@ -244,7 +250,7 @@ if nargin==1
     else
         settings = varargin{1};
     end
-    
+
     if ~isempty(settings.gui_data.rawdata_filename)
         load_rawdata_pb_cb([],[],settings.gui_data.rawdata_filename);
     end
@@ -263,8 +269,9 @@ if nargin==1
         adjust_reference_and_trajectory_pb_cb([],[]);
         temporal_recon_type_pm_cb([],[],settings.recon.recon_details.recon_type);
         offresonance_correction_cb_cb([],[],settings.recon.recon_details.offresonance_correction_flag);
-%        use_gridengine_cb_cb([],[],settings.param.use_gridengine);
-        use_slurm_cb_cb([],[],settings.param.use_slurm);
+        %        use_gridengine_cb_cb([],[],settings.param.use_gridengine);
+        % use_slurm_cb_cb([],[],settings.param.use_slurm);
+        use_parallel_cb_cb([],[],settings.param.use_parallel);
         frames_per_job_e_cb([],[],settings.param.frames_per_job);
         recon_range_e_cb([],[],settings.recon.recon_details.timeframes_string);
         for k=1:(settings.gui_data.add_penalty_counter-D.gui_data.add_penalty_counter)
@@ -275,7 +282,7 @@ if nargin==1
             select_norm_pm_cb([],[],k,settings.recon.recon_details.penalty(k).norm_string);
             select_operator_pm_cb([],[],k,settings.recon.recon_details.penalty(k).operator_string);
         end
-        
+
         recon_output_format_pm_cb([],[],settings.recon.recon_details.recon_output_format);
         save_where_pb_cb([],[],settings.gui_data.save_folder_name);
         save_during_recon_cb_cb([],[],settings.check.save_during_recon);
@@ -283,7 +290,7 @@ if nargin==1
     else
         local_set_status('Not all necessary data available. Stopping import of settings.');
     end
-    
+
 end
 
 
@@ -291,10 +298,10 @@ end
 if ~exist('nufft_init.m','file')
     warning('NUFFT not found. Please install Fessler''s Image Reconstruction Toolbox to use all features.');
     local_set_status('NUFFT not found. Please install Fessler''s Image Reconstruction Toolbox to use all features.');
-    h0 = [get(H.recon_parameters_panel_1,'Children'); get(H.recon_panel,'Children'); H.penalities_t; H.add_penalty_pb]; 
+    h0 = [get(H.recon_parameters_panel_1,'Children'); get(H.recon_panel,'Children'); H.penalities_t; H.add_penalty_pb];
     for k=1:length(h0)
         set(h0,'Enable','off');
-    end        
+    end
     clear h0;
 end
 
@@ -312,7 +319,7 @@ end
 if slurmnotfound
     warning('Slurm not installed.');
     local_set_status('Slurm not installed.');
-    set(H.use_slurm_cb,'Enable','off');
+    % set(H.use_slurm_cb,'Enable','off');
 end
 clear slurmnotfound slurmfoundpath;
 
@@ -325,7 +332,7 @@ clear slurmnotfound slurmfoundpath;
         if isstr(pname) && exist(pname,'dir')==7
             D.gui_data.working_directory = pname;
             set(H.set_path_e,'String',D.gui_data.working_directory);
-        end        
+        end
     end
 
 %%%%%%%%%%%%
@@ -373,7 +380,7 @@ clear slurmnotfound slurmfoundpath;
         end
         drawnow;
         refresh;
-        
+
         local_clear_rawdata; % clear rawdata
 
         [~,~,ext] = fileparts(fname);
@@ -392,7 +399,7 @@ clear slurmnotfound slurmfoundpath;
 
         local_check;
         local_update('rawdata');
-        
+
         % loads automatically the trajectory when the raw data is loaded
         try
             path = fileparts(D.rawdata.rawdata_filename);
@@ -401,9 +408,9 @@ clear slurmnotfound slurmfoundpath;
         catch
             clear_trajectory_pb_cb;
         end
-        
+
         DORK_cb_cb
-        
+
     end
 
 %%%%%%%%%%%%
@@ -421,7 +428,7 @@ clear slurmnotfound slurmfoundpath;
         % reference_mid
         % reference_filename
 
-        
+
         if nargin<=2
             [fname, pname] = uigetfile({'*.dat;*.mat','Data and mat files (*.dat,*.mat)';'*.dat','Data files (*.dat)';'*.mat','mat files (*.mat)'},[],D.gui_data.default_folder);
         else
@@ -436,12 +443,12 @@ clear slurmnotfound slurmfoundpath;
         end
         refresh;
         drawnow;
-        
+
         if fname==0
             local_set_status('Loading canceled.');
             return;
         end
-        
+
         local_clear_reference; % clear reference
 
         [~,~,ext] = fileparts(fname);
@@ -453,19 +460,19 @@ clear slurmnotfound slurmfoundpath;
             else
                 sensmode_pm_cb([],[],'unknown');
             end
-            
+
         elseif strcmp(ext,'.dat')
             local_set_status('Loading reference from raw data ...');
             D.reference = loadReference(fullfile(pname,fname));
         else
             local_set_status('Unknown file extension.');
             return;
-        
+
         end
-        
+
         D.reference.reference_filename = fullfile(pname,fname);
         D.gui_data.reference_filename = D.reference.reference_filename;
-        
+
         switch D.reference.raw.mode
             case '2d'
                 D.param.recon_dimension = 2;
@@ -475,12 +482,12 @@ clear slurmnotfound slurmfoundpath;
             otherwise
                 local_set_status('Error when loading the reference data. No mode specified.');
         end
-        
+
         D.check.reference_loaded_flag = 1;
-        
+
         local_check;
         local_update('reference');
-        
+
     end
 
 %%%%%%%%%%%%
@@ -500,7 +507,7 @@ clear slurmnotfound slurmfoundpath;
         else
             tmp = D.gui_data.sensmode_pm_string{get(H.sensmode_pm,'Value')};
         end
-        
+
         if ~strcmp(tmp,D.param.sensmode)
             D.param.sensmode = tmp;
             if D.check.adjust_reference_and_trajectory_flag
@@ -580,33 +587,33 @@ clear slurmnotfound slurmfoundpath;
         % idx = cell array of indices of valid trajectory points
         % resolution = resolution of the trajectory
         % fov = field of view of the trajectory
-        
+
 
         local_set_status('Loading trajectory ...');
-                
+
         if nargin < 3 || isempty(filename)
             [D.trajectory, status] = loadTrajectory([], D.gui_data.default_folder, delay);
-%            [D.trajectory, status] = loadTrajectory([], D.gui_data.default_folder);
+            %            [D.trajectory, status] = loadTrajectory([], D.gui_data.default_folder);
             pname = fileparts(D.trajectory.trajectory_filename);
             D.gui_data.default_folder = pname;
         else
             [D.trajectory, status] = loadTrajectory(filename, [], delay);
-%            [D.trajectory, status] = loadTrajectory(filename, []);
+            %            [D.trajectory, status] = loadTrajectory(filename, []);
         end
         local_set_status(status);
         if isempty(D.trajectory), return; end
-        
+
         D.gui_data.trajectory_filename = D.trajectory.trajectory_filename;
         D.check.trajectory_loaded_flag = 1;
-        
+
         [~,idx_k0]=min(makesos(D.trajectory.trajectory{1}(D.trajectory.idx{1},:),2));
         D.recon.recon_details.DORK_k0 = D.trajectory.idx{1}(idx_k0);        % this implementation only works for 1 segment/identical segments!
 
         local_check;
         local_update('trajectory');
         local_set_trajectory_range_string;
-        
-        
+
+
     end
 
 %%%%%%%%%%%%
@@ -671,11 +678,11 @@ clear slurmnotfound slurmfoundpath;
             for n=1:D.recon.recon_details.nInterleaves
                 if D.param.recon_dimension==2
                     plot(D.trajectory.trajectory{n}(D.trajectory.idx{n},1), ...
-                         D.trajectory.trajectory{n}(D.trajectory.idx{n},2),'-','Color',c(n,:));
+                        D.trajectory.trajectory{n}(D.trajectory.idx{n},2),'-','Color',c(n,:));
                 elseif D.param.recon_dimension==3
                     plot3(D.trajectory.trajectory{n}(D.trajectory.idx{n},1), ...
-                          D.trajectory.trajectory{n}(D.trajectory.idx{n},2), ...
-                          D.trajectory.trajectory{n}(D.trajectory.idx{n},3),'-','Color',c(n,:));
+                        D.trajectory.trajectory{n}(D.trajectory.idx{n},2), ...
+                        D.trajectory.trajectory{n}(D.trajectory.idx{n},3),'-','Color',c(n,:));
                     view(45,30);
                 end
             end
@@ -710,10 +717,10 @@ clear slurmnotfound slurmfoundpath;
             end
             D.trajectory.idx{n} = [D.trajectory.trajectory_select_range{n}(1):D.trajectory.trajectory_select_range{n}(2)];
         end
-      
+
         local_set_trajectory_range_string;
-        
-%%%%%%%%%%%%
+
+        %%%%%%%%%%%%
         function select_range(hobj2,eventdata2)
             range_pt = get(h,'CurrentPoint');
             range_pt = range_pt(1,1:2);
@@ -780,7 +787,7 @@ clear slurmnotfound slurmfoundpath;
             set(H.recon_resolution_e,'String',['[',num2str(D.recon.recon_details.recon_resolution,'%i '),']']);
             return;
         end
-        
+
         D.recon.recon_details.recon_resolution = resolution;
         local_set_status(['Image dimension set to [',num2str(D.recon.recon_details.recon_resolution,'%i '),'].']);
         set(H.recon_resolution_e,'String',['[',num2str(D.recon.recon_details.recon_resolution,'%i '),']']);
@@ -796,13 +803,13 @@ clear slurmnotfound slurmfoundpath;
         else
             set(H.recon_voxel_size_e,'String',['[',num2str(1e3*voxel_size,'%.1f '),']']);
         end
-        
+
         if ~check_input(voxel_size,'numeric','1d','length',D.param.recon_dimension);
             local_set_status(['Recon voxel size must be a 1d-array with ',num2str(D.param.recon_dimension),' entries.']);
             set(H.recon_voxel_size_e,'String',['[',num2str(1e3*D.recon.recon_details.recon_voxel_size,'%.1f '),']']);
             return;
         end
-        
+
         D.recon.recon_details.recon_voxel_size = voxel_size;
         local_set_status(['Recon voxel size set to [',num2str(1e3 * D.recon.recon_details.recon_voxel_size,'%.1f '),'].']);
         set(H.recon_voxel_size_e,'String',['[',num2str(1e3*D.recon.recon_details.recon_voxel_size,'%.1f '),']']);
@@ -866,7 +873,7 @@ clear slurmnotfound slurmfoundpath;
                         return;
                 end
             end
-            
+
             if calc == 1
                 try
                     z0_pb_cb;
@@ -878,7 +885,7 @@ clear slurmnotfound slurmfoundpath;
                     return;
                 end
             end
-            
+
             D.recon.recon_details.z0 = D.gui_data.z0;
             D.recon.recon_details.z0_details = D.gui_data.z0_details;
         end
@@ -900,12 +907,12 @@ clear slurmnotfound slurmfoundpath;
             recon_details.z0 = 0;
             recon_details.z0_details = [];
             recon_details.recon_output_format = 'not';
-            
+
             data.smaps      = D.reference.smaps;
             data.wmap       = D.reference.wmap;
             data.shift      = D.reference.shift;
             data.trajectory = D.trajectory;
-            
+
             D.gui_data.z0 = double(mreg_recon_tool_recon('local',data,recon_details));
             D.gui_data.z0_details = recon_details;
             local_set_status('Done.');
@@ -923,13 +930,13 @@ clear slurmnotfound slurmfoundpath;
         if get(H.DORK_cb,'Value') ~= 1
             D.recon.recon_details.DORK_frequency = [];
         elseif isempty(D.recon.recon_details.DORK_k0)
-            local_set_status('DORK frequencies not set. Load trajectory first!');    
+            local_set_status('DORK frequencies not set. Load trajectory first!');
             set(H.DORK_cb,'Value',0)
         else
             local_set_status('Calculating DORK frequencies...');
             [D.recon.recon_details.DORK_frequency,D.recon.recon_details.DORK_phi_offset] = ...
                 DORK_frequency(D.rawdata.rawdata_filename,D.recon.recon_details.DORK_k0,D.rawdata.trajectorySegments);
-           
+
             local_set_status('Done.');
         end
     end
@@ -943,7 +950,7 @@ clear slurmnotfound slurmfoundpath;
             set(H.global_or_shift_e,'String',num2str(val,'%i'));
             shift = val;
         end
-        
+
         if ~check_input(shift,'numeric','scalar','int')
             local_set_status('Global off-resonance shift must be a scalar, integer value.');
             set(H.global_or_shift_e,'String',num2str(D.recon.recon_details.global_frequency_shift,'%i'));
@@ -961,7 +968,7 @@ clear slurmnotfound slurmfoundpath;
 %             set(H.use_gridengine_cb,'Value',val);
 %             D.param.use_gridengine = val;
 %         end
-%         
+%
 %         if D.param.use_gridengine==1
 %             set(H.frames_per_job_e,'Enable','on');
 %             set(H.save_during_recon_cb,'Enable','off','Visible','off');
@@ -972,20 +979,43 @@ clear slurmnotfound slurmfoundpath;
 %     end
 
 %%%%%%%%%%%%
-    function use_slurm_cb_cb(hobj, eventdata, val)
+% function use_slurm_cb_cb(hobj, eventdata, val)
+%     if nargin<=2
+%         D.param.use_slurm = get(H.use_slurm_cb,'Value');
+%     else
+%         set(H.use_slurm_cb,'Value',val);
+%         D.param.use_slurm = val;
+%     end
+
+%     if D.param.use_slurm==1
+%         set(H.frames_per_job_e,'Enable','on');
+%         set(H.save_during_recon_cb,'Enable','off','Visible','off');
+%     else
+%         set(H.frames_per_job_e,'Enable','off');
+%         set(H.save_during_recon_cb,'Enable','on','Visible','on');
+%     end
+% end
+
+    function use_parallel_cb_cb(hobj, eventdata, val)
+        parallel_val = 0;
         if nargin<=2
-            D.param.use_slurm = get(H.use_slurm_cb,'Value');
+            parallel_val= get(H.use_parallel_cb,'Value');
         else
-            set(H.use_slurm_cb,'Value',val);
-            D.param.use_slurm = val;
+            val_idx = find(strcmp(D.gui_data.parallel_type_string,val));
+            set(H.use_parallel_cb,'Value',val_idx);
+            parallel_val = val_idx;
         end
-        
-        if D.param.use_slurm==1
+
+        D.param.use_parallel = D.gui_data.parallel_type_string{parallel_val};
+
+        if D.param.use_parallel ~= "None"
             set(H.frames_per_job_e,'Enable','on');
             set(H.save_during_recon_cb,'Enable','off','Visible','off');
+            local_set_status(['Using parallel processing engine: ', D.param.use_parallel, '.']);
         else
             set(H.frames_per_job_e,'Enable','off');
             set(H.save_during_recon_cb,'Enable','on','Visible','on');
+            local_set_status(['Not using parallel processing engine.']);
         end
     end
 
@@ -997,13 +1027,13 @@ clear slurmnotfound slurmfoundpath;
             set(H.frames_per_job_e,'String',num2str(val,'%i'));
             frames_per_job = val;
         end
-        
+
         if ~check_input(frames_per_job,'numeric','scalar','int')
             local_set_status(['Frames per grid engine job must be a scalar, integer value.']);
             set(H.frames_per_job_e,'String',num2str(D.param.frames_per_job,'%i'));
             return;
         end
-        
+
         D.param.frames_per_job = frames_per_job;
         local_set_status(['Frames per job set to ',num2str(D.param.frames_per_job),'.']);
     end
@@ -1018,13 +1048,13 @@ clear slurmnotfound slurmfoundpath;
             range = str2num(range_str);
             set(H.recon_range_e,'String',str);
         end
-        
+
         if ~check_input(range,'numeric','vector','int','ge',1,'le',D.rawdata.Nt)
             local_set_status(['Recon range must be a scalar, integer vector within the bounds [1,',num2str(D.rawdata.Nt),'].']);
             set(H.recon_range_e,'String',D.recon.recon_details.timeframes_string);
             return;
         end
-        
+
         D.recon.recon_details.timeframes = range;
         D.recon.recon_details.timeframes_string = range_str;
         local_set_status(['Recon range set to ',D.recon.recon_details.timeframes_string]);
@@ -1037,13 +1067,13 @@ clear slurmnotfound slurmfoundpath;
                 local_set_status('At least one penalty has to be added first.');
                 return;
             end
-            
+
             if D.check.adjust_reference_and_trajectory_flag==0
                 local_set_status('Trajectory and Reference properties don''t match. Adjust first.');
-                return;                
+                return;
             end
 
-            
+
             recon_details = D.recon.recon_details;
             if isempty(D.gui_data.save_folder_name)
                 dstr = ['recon_',datestr(now,'dd.mm.yyyy-HH-MM-SS')];
@@ -1051,7 +1081,7 @@ clear slurmnotfound slurmfoundpath;
                 dstr = D.gui_data.save_folder_name;
             end
             recon_details.pname = fullfile(D.gui_data.working_directory,dstr);
-            
+
             data.smaps      = D.reference.smaps;
             data.wmap       = D.reference.wmap;
             data.anatomical = D.reference.anatomical;
@@ -1061,17 +1091,15 @@ clear slurmnotfound slurmfoundpath;
             data.ref_header = D.reference.header;
             data.sensmode   = D.reference.sensmode;
             data.trajectory = D.trajectory;
-                               
-%            if D.param.use_gridengine==1
-%                local_set_status('Submitting jobs to gridengine ...');
-            if D.param.use_slurm==1
+
+            %            if D.param.use_gridengine==1
+            %                local_set_status('Submitting jobs to gridengine ...');
+            if D.param.use_parallel == "Slurm"
                 local_set_status('Submitting jobs to slurm ...');
                 try
-%                    mreg_recon_tool_sge_init(data,recon_details,D.param.frames_per_job);
-                    mreg_recon_tool_slurm_init(data,recon_details,D.param.frames_per_job);
+                    mreg_recon_tool_slurm_init(data,recon_details, D.param.frames_per_job);
                     local_set_status('Jobs submitted.');
                 catch err
-%                    if strcmp(err.identifier, 'mreg_recon_tool_sge_init:Dir_exists')
                     if strcmp(err.identifier, 'mreg_recon_tool_slurm_init:Dir_exists')
                         local_set_status('Directory already exists. Please choose another one under ''Where''.');
                     else
@@ -1080,18 +1108,18 @@ clear slurmnotfound slurmfoundpath;
                 end
             else
                 local_set_status('Reconstructing ...');
-                
+
                 if D.check.save_during_recon==0
                     recon_details.recon_output_format = 'not';
                 else
                     recon_details.fname = 'recon';
                 end
-                
+
                 D.recon.recon = mreg_recon_tool_recon('local',data,recon_details);
                 D.check.recon_finished_flag = 1;
                 local_set_status('Done.');
             end
-            
+
         else
             local_set_status('Not all necessary data loaded yet or reference not adjusted yet.');
             return;
@@ -1121,7 +1149,7 @@ clear slurmnotfound slurmfoundpath;
             end
             tmp = str;
         end
-        
+
         if strcmp(tmp,'nifti')
             if exist('spm_write_vol.m')~=2
                 set(H.recon_output_format_pm,'Value',1);
@@ -1152,7 +1180,7 @@ clear slurmnotfound slurmfoundpath;
     function save_recon_as_file_pb_cb(hobj,eventdata)
         if D.check.recon_finished_flag == 1
             recon = D.recon.recon;
-            
+
             switch D.recon.recon_details.recon_output_format
                 case 'mat'
                     [fname, pname] = uiputfile('*','Save as mat file ...',['recon_mid',num2str(D.rawdata.mid)]);
@@ -1165,25 +1193,25 @@ clear slurmnotfound slurmfoundpath;
                         mreg_recon_tool_write_file('mat',recon(:,:,:,k),D.recon.recon_details.timeframes(k),pname,fname,D.rawdata.Nt);
                     end
                     local_set_status('Reconstruction exported as mat-file.');
-                    
+
                 case 'nifti'
                     [fname, pname] = uiputfile('*','Save as nifti ...',['recon_mid',num2str(D.rawdata.mid)]);
                     if ~isstr(fname)
                         local_set_status('Saving canceled.');
                         return;
                     end
-                    [~,fname,ext] = fileparts(fname);                    
+                    [~,fname,ext] = fileparts(fname);
                     for k=1:length(D.recon.recon_details.timeframes)
                         mreg_recon_tool_write_file('nifti',recon(:,:,:,k),D.recon.recon_details.timeframes(k),pname,fname,D.rawdata.Nt);
                     end
                     local_set_status('Reconstruction exported as nifti files.');
             end
-        
+
         else
             local_set_status('Time series must be reconstructed first.');
-            
+
         end
-        
+
     end
 
 %%%%%%%%%%%%
@@ -1214,8 +1242,8 @@ clear slurmnotfound slurmfoundpath;
 %%%%%%%%%%%%
     function add_penalty_pb_cb(hobj,eventdata)
         D.gui_data.add_penalty_counter = D.gui_data.add_penalty_counter + 1;
-        
-        if D.gui_data.add_penalty_counter==1            
+
+        if D.gui_data.add_penalty_counter==1
             p = get(H.add_penalty_pb,'Position');
             H.lambda_t = uicontrol(H.main_fig,'Style','Text','String','lambda','Position',[p(1)+p(3)+3*spacing,p(2)+pb_height,pb_width,tb_height],'FontUnits',font_units,'FontSize',font_size);
             p = get(H.lambda_t(D.gui_data.add_penalty_counter),'Position');
@@ -1223,18 +1251,18 @@ clear slurmnotfound slurmfoundpath;
             p = get(H.select_norm_t(D.gui_data.add_penalty_counter),'Position');
             H.select_operator_t = uicontrol(H.main_fig,'Style','Text','String','Select Operator','Position',[p(1)+p(3)+3*spacing,p(2),pb_width,tb_height],'FontUnits',font_units,'FontSize',font_size);
         end
-        
+
         p = get(H.add_penalty_pb,'Position');
         set(H.add_penalty_pb,'Position',[p(1) p(2)-pb_height-spacing p(3) p(4)]);
         H.lambda_e(D.gui_data.add_penalty_counter) = uicontrol(H.main_fig,'Style','Edit','String',num2str(D.gui_data.lambda_default),'Position',[p(1)+p(3)+3*spacing,p(2),pb_width,pb_height],'BackgroundColor','white','Callback',{@lambda_e_cb,D.gui_data.add_penalty_counter},'FontUnits',font_units,'FontSize',font_size);
         D.recon.recon_details.penalty(D.gui_data.add_penalty_counter).lambda = D.gui_data.lambda_default;
-        
+
         p = get(H.lambda_e(D.gui_data.add_penalty_counter),'Position');
         H.select_norm_pm(D.gui_data.add_penalty_counter) = uicontrol(H.main_fig,'Style','PopupMenu','String',D.gui_data.select_norm_string,'Position',[p(1)+p(3)+3*spacing,p(2),pb_width,pb_height],'Callback',{@select_norm_pm_cb,D.gui_data.add_penalty_counter},'FontUnits',font_units,'FontSize',font_size);
 
         p = get(H.select_norm_pm(D.gui_data.add_penalty_counter),'Position');
         H.select_operator_pm(D.gui_data.add_penalty_counter) = uicontrol(H.main_fig,'Style','PopupMenu','String',D.gui_data.select_operator_string,'Position',[p(1)+p(3)+3*spacing,p(2),pb_width,pb_height],'Callback',{@select_operator_pm_cb,D.gui_data.add_penalty_counter},'FontUnits',font_units,'FontSize',font_size);
-        
+
         if D.gui_data.add_penalty_counter==1
             p = get(H.add_penalty_pb(D.gui_data.add_penalty_counter),'Position');
             H.delete_penalty_pb(D.gui_data.add_penalty_counter) = uicontrol(H.main_fig,'Style','PushButton','String','Delete','Position',[p(1)-pb_width/2,p(2),pb_width/2,pb_height],'Callback',{@delete_penalty_pb_cb},'FontUnits',font_units,'FontSize',font_size);
@@ -1256,13 +1284,13 @@ clear slurmnotfound slurmfoundpath;
         delete(H.select_norm_pm(D.gui_data.add_penalty_counter));
         delete(H.lambda_e(D.gui_data.add_penalty_counter));
         delete(H.select_operator_pm(D.gui_data.add_penalty_counter));
-        
+
         D.recon.recon_details.penalty(D.gui_data.add_penalty_counter) = [];
-        
+
         H.select_norm_pm(D.gui_data.add_penalty_counter) = [];
         H.lambda_e(D.gui_data.add_penalty_counter) = [];
         H.select_operator_pm(D.gui_data.add_penalty_counter) = [];
-        
+
         if D.gui_data.add_penalty_counter==1
             delete(H.delete_penalty_pb);
             delete(H.lambda_t);
@@ -1270,9 +1298,9 @@ clear slurmnotfound slurmfoundpath;
             delete(H.select_operator_t);
         else
             p = get(H.delete_penalty_pb,'Position');
-            set(H.delete_penalty_pb,'Position',[p(1) p(2)+pb_height+spacing p(3) p(4)]);            
+            set(H.delete_penalty_pb,'Position',[p(1) p(2)+pb_height+spacing p(3) p(4)]);
         end
-        
+
         D.gui_data.add_penalty_counter = D.gui_data.add_penalty_counter - 1;
     end
 
@@ -1284,7 +1312,7 @@ clear slurmnotfound slurmfoundpath;
             lambda = val;
             set(H.lambda_e(counter),'String',num2str(val,'%1.1e'));
         end
-        
+
         if ~check_input(lambda,'numeric','scalar')
             local_set_status(['The regularization parameter must be a scalar value.']);
             set(H.lambda_e(counter),'String',num2str(D.recon.recon_details.penalty(counter).lambda,'%1.1e'));
@@ -1306,9 +1334,9 @@ clear slurmnotfound slurmfoundpath;
                 end
             end
         end
-        
+
         D.recon.recon_details.penalty(counter).norm_string = str;
-        
+
         switch str
             case 'L2-norm'
                 D.recon.recon_details.penalty(counter).norm = @L2Norm;
@@ -1378,21 +1406,21 @@ clear slurmnotfound slurmfoundpath;
 
 %%%%%%%%%%%%
     function local_adjust_ref_traj
-        
+
         local_set_status('Trajectory and reference have different parameters. Resizing sensitivity maps ...');
         drawnow;
 
-        
+
         fov_recon = D.recon.recon_details.recon_resolution .* D.recon.recon_details.recon_voxel_size;
         D.reference = resizeReference(D.reference, fov_recon, D.recon.recon_details.recon_resolution, D.rawdata, D.param.sensmode);
         local_set_status('Resizing reference data finished.');
-        
+
         % if a different voxel size is desired than that specified by the trajectory, the trajectory has to be scaled accordingly
         voxel_size_org = D.trajectory.fov ./ D.trajectory.resolution;
-        
+
         D.recon.recon_details.trajectory_scaling = D.recon.recon_details.recon_voxel_size ./ voxel_size_org;
         D.check.adjust_reference_and_trajectory_flag = 1;
-        
+
         D.gui_data.z0 = 0;
         D.gui_data.z0_details = [];
         D.recon.recon_details.z0 = 0;
@@ -1400,7 +1428,7 @@ clear slurmnotfound slurmfoundpath;
         set(H.z0_cb, 'Value', 0);
 
         set(H.adjust_reference_and_trajectory_pb,'BackgroundColor',active_flag_color);
-        
+
         local_update('adjust');
         drawnow;
     end
@@ -1410,7 +1438,7 @@ clear slurmnotfound slurmfoundpath;
         D.check.rawdata_loaded_flag = 0;
 
         set(H.load_rawdata_pb,'BackgroundColor',not_active_flag_color);
-        
+
         D.rawdata = [];
         D.recon.recon_details.dwelltime = [];
         D.recon.recon_details.Nt = [];
@@ -1419,7 +1447,7 @@ clear slurmnotfound slurmfoundpath;
         D.recon.recon_details.DORK_frequency = [];
         D.check.trajectory_loaded_flag = 0;
         D.gui_data.rawdata_filename = '';
-        
+
         set(H.rawdata_info_t,'String','');
         set(H.recon_range_e,'String','');
         local_set_status('Rawdata cleared.');
@@ -1432,14 +1460,14 @@ clear slurmnotfound slurmfoundpath;
 
         set(H.load_reference_pb,'BackgroundColor',not_active_flag_color);
         set(H.adjust_reference_and_trajectory_pb,'BackgroundColor',not_active_flag_color);
-        
+
         D.reference = [];
         D.recon.recon_details.nCoils = [];
         D.recon.recon_details.recon_resolution = [];
         D.recon.recon_details.recon_voxel_size = [];
         D.param.recon_dimension = 3;
         D.gui_data.reference_filename = '';
-        
+
         set(H.reference_info_t,'String','');
         set(H.recon_resolution_e,'String','');
         set(H.recon_voxel_size_e,'String','');
@@ -1456,15 +1484,15 @@ clear slurmnotfound slurmfoundpath;
 
         set(H.load_trajectory_pb,'BackgroundColor',not_active_flag_color);
         set(H.adjust_reference_and_trajectory_pb,'BackgroundColor',not_active_flag_color);
-        
+
         D.trajectory = [];
         D.param.trajectory_range_string = {''};
         D.recon.recon_details.trajectory_scaling = [];
         D.recon.recon_details.nInterleaves = [];
         D.gui_data.trajectory_filename = '';
-        
+
         set(H.interleaves_e,'String','');
-        set(H.trajectory_info_t,'String','');        
+        set(H.trajectory_info_t,'String','');
         set(H.recon_resolution_e,'String','');
         set(H.recon_voxel_size_e,'String','');
         set(H.trajectory_range_info_pm,'String',{''});
@@ -1484,7 +1512,7 @@ clear slurmnotfound slurmfoundpath;
 
 %%%%%%%%%%%%
     function local_check
-        
+
         % reduce dimension of trajectory if it's a 2d reconstruction
         if D.check.trajectory_loaded_flag==1 && D.check.reference_loaded_flag==1
             if D.param.recon_dimension==2
@@ -1495,7 +1523,7 @@ clear slurmnotfound slurmfoundpath;
                 end
             end
         end
-        
+
         % If the following parameters are empty, they are initialized
         if D.check.trajectory_loaded_flag==1 && D.check.reference_loaded_flag==1
             if isempty(D.recon.recon_details.recon_resolution)
@@ -1513,17 +1541,17 @@ clear slurmnotfound slurmfoundpath;
             set(H.recon_resolution_e,'String',['[',num2str(D.recon.recon_details.recon_resolution,'%i '),']']);
             set(H.recon_voxel_size_e,'String',['[',num2str(1e3*D.recon.recon_details.recon_voxel_size,'%.1f '),']']);
         end
-        
+
         % Enable adjustment of reference data when trajectory and reference are loaded
         if D.check.trajectory_loaded_flag==1 && D.check.reference_loaded_flag==1
             set(H.recon_resolution_e,'Enable','on');
             set(H.recon_voxel_size_e,'Enable','on');
             set(H.adjust_reference_and_trajectory_pb,'Enable','on');
-            
+
             % this means it is a spin echo sequence
             % ToDo: Once, te[1] is the traj. te for all sequences, this can
             % be calculated without D.trajectory and moved to the update f.
-            if isfield(D.rawdata, 'sequence') && strcmp(D.rawdata.sequence(end-3:end), 'diff') 
+            if isfield(D.rawdata, 'sequence') && strcmp(D.rawdata.sequence(end-3:end), 'diff')
                 if isfield(D.trajectory, 'TE_s')
                     D.recon.recon_details.DeltaT = - D.trajectory.TE_s + D.rawdata.trajectIndices(1)*D.rawdata.dwelltime;
                 else
@@ -1536,16 +1564,16 @@ clear slurmnotfound slurmfoundpath;
                 % beginning of the trajectory for all GE-MREG sequences.
                 D.recon.recon_details.DeltaT = D.rawdata.te(1) + D.rawdata.trajectIndices(1)*D.rawdata.dwelltime;
             end
-                
-            
-            
+
+
+
         else
             set(H.recon_resolution_e,'Enable','off');
             set(H.recon_voxel_size_e,'Enable','off');
             set(H.adjust_reference_and_trajectory_pb,'Enable','off');
-            
+
         end
-        
+
         if D.check.trajectory_loaded_flag==1 && D.check.reference_loaded_flag==1
             if isfield(D.reference, 'dim') && all(D.reference.dim==D.recon.recon_details.recon_resolution) && all(D.reference.fov==D.recon.recon_details.recon_voxel_size.*D.recon.recon_details.recon_resolution) && D.reference.Cor_angle == D.rawdata.Cor_angle && all(D.reference.shift == D.rawdata.shift./D.recon.recon_details.recon_voxel_size)
                 set(H.adjust_reference_and_trajectory_pb,'BackgroundColor',active_flag_color);
@@ -1555,10 +1583,10 @@ clear slurmnotfound slurmfoundpath;
                 D.check.adjust_reference_and_trajectory_flag = 0;
             end
         end
-        
+
         drawnow;
 
-        if D.check.rawdata_loaded_flag && D.check.reference_loaded_flag==1 && D.check.trajectory_loaded_flag==1 
+        if D.check.rawdata_loaded_flag && D.check.reference_loaded_flag==1 && D.check.trajectory_loaded_flag==1
             if D.gui_data.add_penalty_counter==0
                 add_penalty_pb_cb;
             end
@@ -1566,13 +1594,13 @@ clear slurmnotfound slurmfoundpath;
         else
             set(H.z0_cb,   'Enable', 'Off');
         end
-        
-        
+
+
     end
 
 %%%%%%%%%%%%
     function local_update(that)
-        
+
         if D.check.adjust_reference_and_trajectory_flag
             D.gui_data.select_view_reference_string = {'Anatomical', 'Single Coil Images', 'Sensitivity Maps', 'Off-Resonance Map'};
             set(H.select_view_reference_pm, 'String', D.gui_data.select_view_reference_string);
@@ -1589,7 +1617,7 @@ clear slurmnotfound slurmfoundpath;
             D.param.select_view_reference = 1;
             set(H.select_view_reference_pm, 'String', D.gui_data.select_view_reference_string);
         end
-        
+
         switch that
             case 'rawdata'
                 if D.check.rawdata_loaded_flag==1
@@ -1601,11 +1629,11 @@ clear slurmnotfound slurmfoundpath;
                     D.recon.recon_details.timeframes_string = ['1:',num2str(D.rawdata.Nt)];
 
                     set(H.rawdata_info_t,'String',{['MID = ',num2str(D.rawdata.mid)], ...
-                                                   ['TR = ',num2str(1e3*D.rawdata.tr), 'ms'], ...
-                                                   ['TE = ',num2str(1e3*D.rawdata.te(1)),'ms'], ...
-                                                   ['FA = ',num2str(D.rawdata.flipAngle), 'deg'], ...
-                                                   ['Nt = ', num2str(D.rawdata.Nt)],...
-                                                   ['',D.rawdata.trajectory]});
+                        ['TR = ',num2str(1e3*D.rawdata.tr), 'ms'], ...
+                        ['TE = ',num2str(1e3*D.rawdata.te(1)),'ms'], ...
+                        ['FA = ',num2str(D.rawdata.flipAngle), 'deg'], ...
+                        ['Nt = ', num2str(D.rawdata.Nt)],...
+                        ['',D.rawdata.trajectory]});
                     set(H.recon_range_e,'String',D.recon.recon_details.timeframes_string);
                     set(H.load_rawdata_pb,'BackgroundColor',active_flag_color);
                     local_set_status('Data loaded.');
@@ -1618,16 +1646,16 @@ clear slurmnotfound slurmfoundpath;
                     D.recon.recon_details.timeframes_string = '';
                     D.recon.recon_details.DeltaT = [];
                 end
-                
+
             case 'reference'
                 if D.check.reference_loaded_flag==1
-                    
-                    
+
+
                     set(H.reference_info_t,'String',{['Res. = [',num2str(D.reference.raw.dim ,'%i '), ']'], ...
-                                                     ['FOV = [',num2str(D.reference.raw.fov ,'%1.2f '), ']']});
+                        ['FOV = [',num2str(D.reference.raw.fov ,'%1.2f '), ']']});
                     set(H.load_reference_pb,'BackgroundColor',active_flag_color);
                     local_set_status('Reference loaded.');
-                    
+
                     if D.param.recon_dimension==3
                         D.recon.recon_details.nCoils = size(D.reference.raw.cmaps,4);
                     else
@@ -1641,13 +1669,13 @@ clear slurmnotfound slurmfoundpath;
                     D.recon.recon_details.nCoils = [];
                     D.check.adjust_reference_and_trajectory_flag = 0;
                 end
-                
+
             case 'adjust'
-                
+
             case 'trajectory'
                 if D.check.trajectory_loaded_flag==1
                     D.recon.recon_details.nInterleaves = length(D.trajectory.trajectory);
-                    
+
                     set(H.load_trajectory_pb,'BackgroundColor',active_flag_color);
                     interleaves_e_cb([],[],length(D.trajectory.trajectory))
                     set(H.trajectory_info_t,'String',{['Res. = [',num2str(D.trajectory.resolution ,'%1.1f '), ']'], ...
@@ -1656,14 +1684,14 @@ clear slurmnotfound slurmfoundpath;
                 else
                     D.recon.recon_details.nInterleaves = [];
                 end
-                
+
         end
         D.recon.recon_details.z0 = 0;
         D.gui_data.z0 = 0;
         D.recon.recon_details.z0_details = [];
         D.gui_data.z0_details = [];
         set(H.z0_cb, 'Value', 0);
-        
+
     end
 
 %%%%%%%%%%%%
@@ -1671,10 +1699,10 @@ clear slurmnotfound slurmfoundpath;
         if isfield(D,'rawdata') && isfield(D.rawdata,'Nt') && ~isempty(D.rawdata.Nt)
             Nt = D.rawdata.Nt;
             Nd = floor(log10(Nt)) + 1;
-            
+
             assert(n>=1, 'input of locale_framenumber2str must be greater than 1.');
             assert(n<=Nt, 'input of locale_framenumber2str must be smaller than Nt.');
-            
+
             tmp = num2str(n);
             nstr = repmat('0',[1 Nd]);
             nstr([Nd-length(tmp)+1:Nd]) = tmp;
