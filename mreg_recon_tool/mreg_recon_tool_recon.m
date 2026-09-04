@@ -13,8 +13,8 @@ function recon = mreg_recon_tool_recon(how,varargin)
 
     if strcmp(how, 'test')
         fprintf('Test mode: No reconstruction performed.\n');
-        fprintf('Number of arguments: %d\n', nargin);
-        for i = 1:nargin
+        fprintf('Number of arguments: %d\n', nargin-1);
+        for i = 1:nargin-1
             fprintf('Argument %d: ', i);
             disp(varargin{i});
         end
@@ -61,9 +61,9 @@ function recon = mreg_recon_tool_recon(how,varargin)
         rawdata_filename = varargin{2};
         fprintf("Overriding reconstruction input filename: %s\n", rawdata_filename);
         tframes = zeros(nargin-2,1);
-        fprintf('Reconstruction job ($d tframes) started on %s\n.', nargin-2, datestr(now));
+        fprintf('Reconstruction job (%d tframes) started on %s\n.', nargin-2, datestr(now));
         fprintf('Frames: ');
-        for i=3:nargin
+        for i=3:nargin-1;
             tframes(i-2) = varargin{i};
             fprintf('%d ', tframes(i-2));
         end
