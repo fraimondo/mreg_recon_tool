@@ -60,7 +60,7 @@ function recon = mreg_recon_tool_recon(how,varargin)
         fprintf("Reconstruction output directory: %s\n", outdir);
         rawdata_filename = varargin{2};
         fprintf("Overriding reconstruction input filename: %s\n", rawdata_filename);
-        tframes = zeros(nargin-2,1);
+        tframes = zeros(nargin-3,1);
         fprintf('Reconstruction job (%d tframes) started on %s\n', nargin-3, datestr(now));
         fprintf('Frames: ');
         for i=3:nargin-1
