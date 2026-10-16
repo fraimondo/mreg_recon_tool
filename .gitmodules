@@ -1,3 +1,4 @@
 [submodule "external/mirt"]
 	path = external/mirt
-	url = https://github.com/JeffFessler/mirt.git
+	url = https://github.com/fraimondo/mirt.git
+	branch = mreg_recon_tool
