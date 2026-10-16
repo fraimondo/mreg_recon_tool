@@ -1,1 +1,36 @@
-mreg_recon_tool/mreg_recon_tool_reconstandaloneApplication
+# MATLAB Compiler output (mreg_recon_tool/compile.m)
+*standaloneApplication/
+*StandaloneApplication/
+*.ctf
+mccExcludedFiles.log
+requiredMCRProducts.txt
+unresolvedSymbols.txt
+includedSupportPackages.txt
+
+# Compiled MEX binaries
+*.mex
+*.mexa64
+*.mexmaci64
+*.mexmaca64
+*.mexw32
+*.mexw64
+
+# MATLAB Coder output
+codegen/
+
+# MATLAB autosave and backup files
+*.asv
+*.m~
+*.autosave
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
