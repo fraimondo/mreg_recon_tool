@@ -184,8 +184,10 @@ p = get(H.global_or_shift_e,'Position');
 H.temporal_recon_type_t = uicontrol(H.main_fig,'Style','Text','Parent',H.recon_panel,'String','Parallel Proc.','Position',[spacing,p(2)-tb_height-spacing,pb_width,tb_height],'HorizontalAlignment','left');
 H.use_parallel_cb = uicontrol(H.main_fig,'Style','PopupMenu','Parent',H.recon_panel,'String', D.gui_data.parallel_type_string,'Position',[spacing,p(2)-pb_height-tb_height-spacing,pb_width,pb_height],'Callback',{@use_parallel_cb_cb});
 p = get(H.use_parallel_cb,'Position');
-H.frames_per_job_t = uicontrol(H.main_fig,'Style','Text','Parent',H.recon_panel,'String','Frames per Job','Position',[spacing,p(2)-tb_height-spacing,pb_width,tb_height],'HorizontalAlignment','left');
-H.frames_per_job_e = uicontrol(H.main_fig,'Style','Edit','Parent',H.recon_panel,'String','20','Position',[spacing,p(2)-pb_height-tb_height-spacing,pb_width,pb_height],'BackgroundColor','white','Callback',{@frames_per_job_e_cb},'Callback',{@frames_per_job_e_cb});
+H.frames_per_job_t = uicontrol(H.main_fig,'Style','Text','Parent',H.recon_panel,'String','Frames/Job','Position',[spacing,p(2)-tb_height-spacing,(pb_width-spacing)/2,tb_height],'HorizontalAlignment','left');
+H.frames_per_job_e = uicontrol(H.main_fig,'Style','Edit','Parent',H.recon_panel,'String','20','Position',[spacing,p(2)-pb_height-tb_height-spacing,(pb_width-spacing)/2,pb_height],'BackgroundColor','white','Callback',{@frames_per_job_e_cb},'Callback',{@frames_per_job_e_cb});
+H.parallel_jobs_t = uicontrol(H.main_fig,'Style','Text','Parent',H.recon_panel,'String','Par. Jobs','Position',[spacing+pb_width/2,p(2)-tb_height-spacing,pb_width/2,tb_height],'HorizontalAlignment','left');
+H.parallel_jobs_e = uicontrol(H.main_fig,'Style','Edit','Parent',H.recon_panel,'String','auto','Position',[spacing+pb_width/2,p(2)-pb_height-tb_height-spacing,pb_width/2,pb_height],'BackgroundColor','white','Enable','off','TooltipString','Jobs run at the same time by GNU Parallel (auto = one per CPU core)','Callback',{@parallel_jobs_e_cb});
 p = get(H.frames_per_job_e,'Position');
 H.recon_range_t = uicontrol(H.main_fig,'Style','Text','Parent',H.recon_panel,'String','Timeframe Range','Position',[spacing,p(2)-tb_height-spacing,pb_width,tb_height],'HorizontalAlignment','left');
 H.recon_range_e = uicontrol(H.main_fig,'Style','Edit','Parent',H.recon_panel,'String','','Position',[spacing,p(2)-pb_height-tb_height-spacing,pb_width,pb_height],'BackgroundColor','white','Callback',{@recon_range_e_cb});
@@ -229,6 +231,7 @@ D.recon.recon_details.recon_output_format = D.gui_data.recon_output_format_strin
 set(H.sensmode_pm,'Value',2);
 
 D.param.frames_per_job = str2num(get(H.frames_per_job_e,'String'));
+D.param.parallel_jobs = []; % empty = one per CPU core
 %D.param.use_gridengine = get(H.use_gridengine_cb,'Value');
 % D.param.use_slurm = get(H.use_slurm_cb,'Value');
 D.param.use_parallel = get(H.use_parallel_cb,'Value');
@@ -273,6 +276,9 @@ if nargin==1
         % use_slurm_cb_cb([],[],settings.param.use_slurm);
         use_parallel_cb_cb([],[],settings.param.use_parallel);
         frames_per_job_e_cb([],[],settings.param.frames_per_job);
+        if isfield(settings.param,'parallel_jobs')
+            parallel_jobs_e_cb([],[],settings.param.parallel_jobs);
+        end
         recon_range_e_cb([],[],settings.recon.recon_details.timeframes_string);
         for k=1:(settings.gui_data.add_penalty_counter-D.gui_data.add_penalty_counter)
             add_penalty_pb_cb([],[]);
@@ -1017,6 +1023,40 @@ clear slurmnotfound slurmfoundpath;
             set(H.save_during_recon_cb,'Enable','on','Visible','on');
             local_set_status(['Not using parallel processing engine.']);
         end
+
+        if D.param.use_parallel == "GNU Parallel"
+            set(H.parallel_jobs_e,'Enable','on');
+        else
+            set(H.parallel_jobs_e,'Enable','off');
+        end
+    end
+
+%%%%%%%%%%%%
+    function parallel_jobs_e_cb(hobj,eventdata,val)
+        if nargin<=2
+            str = strtrim(get(H.parallel_jobs_e,'String'));
+            if isempty(str) || strcmpi(str,'auto')
+                parallel_jobs = [];
+            else
+                parallel_jobs = str2double(str); % NaN if not a number
+            end
+        else
+            parallel_jobs = val;
+        end
+
+        if ~isempty(parallel_jobs) && (isnan(parallel_jobs) || ~check_input(parallel_jobs,'numeric','scalar','int','ge',1))
+            local_set_status('Parallel jobs must be a positive integer, or ''auto'' for one per CPU core.');
+            parallel_jobs = D.param.parallel_jobs;
+        end
+
+        D.param.parallel_jobs = parallel_jobs;
+        if isempty(parallel_jobs)
+            set(H.parallel_jobs_e,'String','auto');
+            local_set_status('Parallel jobs set to one per CPU core.');
+        else
+            set(H.parallel_jobs_e,'String',num2str(parallel_jobs,'%i'));
+            local_set_status(['Parallel jobs set to ',num2str(parallel_jobs),'.']);
+        end
     end
 
 %%%%%%%%%%%%
@@ -1101,6 +1141,30 @@ clear slurmnotfound slurmfoundpath;
                     local_set_status('Jobs submitted.');
                 catch err
                     if strcmp(err.identifier, 'mreg_recon_tool_slurm_init:Dir_exists')
+                        local_set_status('Directory already exists. Please choose another one under ''Where''.');
+                    else
+                        rethrow(err);
+                    end
+                end
+            elseif D.param.use_parallel == "HTCondor"
+                local_set_status('Writing HTCondor jobs ...');
+                try
+                    dag_fname = mreg_recon_tool_htcondor_init(data,recon_details, D.param.frames_per_job);
+                    local_set_status(['Jobs written. Submit with: cd ', recon_details.pname, ' && condor_submit_dag ', dag_fname]);
+                catch err
+                    if strcmp(err.identifier, 'mreg_recon_tool_htcondor_init:Dir_exists')
+                        local_set_status('Directory already exists. Please choose another one under ''Where''.');
+                    else
+                        rethrow(err);
+                    end
+                end
+            elseif D.param.use_parallel == "GNU Parallel"
+                local_set_status('Writing GNU Parallel jobs ...');
+                try
+                    script_fname = mreg_recon_tool_gnuparallel_init(data,recon_details, D.param.frames_per_job, D.param.parallel_jobs);
+                    local_set_status(['Jobs written. Run with: ', script_fname]);
+                catch err
+                    if strcmp(err.identifier, 'mreg_recon_tool_gnuparallel_init:Dir_exists')
                         local_set_status('Directory already exists. Please choose another one under ''Where''.');
                     else
                         rethrow(err);
