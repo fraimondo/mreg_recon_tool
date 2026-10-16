@@ -20,6 +20,13 @@ function recon = mreg_recon_tool_recon(how,varargin)
         end
         fprintf('Test mode finished.\n');
         return;
+    elseif strcmp(how, 'cache')
+        % Build the twix object cache once, before the reconstruction jobs
+        % start, so they don't all parse the raw data file at the same time.
+        recon = [];
+        cache_fname = make_twx_cache(varargin{1});
+        fprintf('Cache ready: %s (%.0f s)\n', cache_fname, toc);
+        return;
     elseif strcmp(how,'local')
         verbose_flag = 1;
 
